@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAD Discovery</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glow {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glow-1 {
+            top: -150px;
+            left: -150px;
+            animation: float 15s ease-in-out infinite;
+        }
+
+        .glow-2 {
+            bottom: -150px;
+            right: -150px;
+            animation: float 20s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(80px, 80px); }
+        }
+
+        #canvas3d {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.4;
+        }
+
+        .wrap {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 32px;
+            position: relative;
+            z-index: 1;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 40px 0;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-logo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .brand-logo iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .brand {
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .admin-icon {
+            width: 44px;
+            height: 44px;
+            background: rgba(139, 92, 246, 0.08);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .admin-icon:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: rgba(139, 92, 246, 0.4);
+            transform: scale(1.05);
+        }
+
+        .hero {
+            padding: 80px 0 80px;
+            text-align: center;
+        }
+
+        .sub {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 400;
+            margin-bottom: 60px;
+        }
+
+        .search-wrap {
+            max-width: 700px;
+            margin: 0 auto 60px;
+        }
+
+        #search {
+            width: 100%;
+            padding: 20px 28px;
+            background: rgba(139, 92, 246, 0.04);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            border-radius: 16px;
+            color: #fff;
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        #search:focus {
+            background: rgba(139, 92, 246, 0.06);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        #search::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .cats {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 80px;
+        }
+
+        .cat {
+            padding: 10px 22px;
+            background: transparent;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 24px;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .cat:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .cat.on {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: rgba(139, 92, 246, 0.5);
+            color: #fff;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 24px;
+            margin-bottom: 100px;
+        }
+
+        .card {
+            background: rgba(15, 15, 15, 0.8);
+            border: 1px solid rgba(139, 92, 246, 0.1);
+            border-radius: 20px;
+            padding: 28px;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(99, 102, 241, 0.05));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            border-color: rgba(139, 92, 246, 0.3);
+            transform: translateY(-6px);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-top {
+            display: flex;
+            gap: 18px;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .proj-logo {
+            width: 64px;
+            height: 64px;
+            border-radius: 14px;
+            object-fit: cover;
+            background: rgba(139, 92, 246, 0.08);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+        }
+
+        .proj-info h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: -0.3px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(139, 92, 246, 0.12);
+            border-radius: 10px;
+            font-size: 11px;
+            color: rgba(139, 92, 246, 0.9);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .desc {
+            color: rgba(255, 255, 255, 0.5);
+            line-height: 1.6;
+            font-size: 14px;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .links {
+            display: flex;
+            gap: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .link {
+            padding: 9px 18px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 10px;
+            color: rgba(139, 92, 246, 0.9);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .link:hover {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: rgba(139, 92, 246, 0.4);
+            color: #8b5cf6;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-box {
+            background: #0f0f0f;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 20px;
+            padding: 48px;
+            max-width: 1100px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 36px;
+        }
+
+        .modal-title {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .close {
+            width: 36px;
+            height: 36px;
+            background: transparent;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 50%;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+
+        .close:hover {
+            background: rgba(139, 92, 246, 0.1);
+            transform: rotate(90deg);
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .field label {
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(139, 92, 246, 0.9);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .field input, .field textarea, .field select {
+            padding: 14px 18px;
+            background: rgba(139, 92, 246, 0.04);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .field textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .field input:focus, .field textarea:focus, .field select:focus {
+            background: rgba(139, 92, 246, 0.06);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        .btn {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-sec {
+            background: transparent;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-del {
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .admin-nav {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 36px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 18px;
+            text-align: left;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+        }
+
+        th {
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(139, 92, 246, 0.8);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        td {
+            font-size: 14px;
+        }
+
+        tr:hover {
+            background: rgba(139, 92, 246, 0.03);
+        }
+
+        .acts {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 7px 14px;
+            font-size: 12px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .load {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(139, 92, 246, 0.6);
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .grid { grid-template-columns: 1fr; }
+            .modal-box { padding: 28px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+    <canvas id="canvas3d"></canvas>
+
+    <div class="wrap">
+        <nav>
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <iframe src="3dlog.html"></iframe>
+                </div>
+                <div class="brand">NAD Discovery</div>
+            </div>
+            <div class="admin-icon" onclick="openModal()">
+                <svg width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 10V6a5 5 0 0110 0v4M3 10h12a2 2 0 012 2v6a2 2 0 01-2 2H3a2 2 0 01-2-2v-6a2 2 0 012-2z"/>
+                </svg>
+            </div>
+        </nav>
+
+        <div class="hero">
+            <p class="sub">Discover the Monad Ecosystem</p>
+        </div>
+
+        <div class="search-wrap">
+            <input type="text" id="search" placeholder="Search projects..." oninput="filter()">
+        </div>
+
+        <div class="cats" id="cats"></div>
+
+        <div id="grid" class="grid">
+            <div class="load">Loading...</div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h2 class="modal-title">Admin</h2>
+                <button class="close" onclick="closeModal()">×</button>
+            </div>
+
+            <div id="login">
+                <div class="field">
+                    <label>Password</label>
+                    <input type="password" id="pass" placeholder="Enter password">
+                </div>
+                <button class="btn" onclick="login()">Login</button>
+            </div>
+
+            <div id="admin" style="display: none;">
+                <div class="admin-nav">
+                    <button class="btn" onclick="showAdd()">+ Add Project</button>
+                    <button class="btn btn-sec" onclick="logout()">Logout</button>
+                </div>
+
+                <div id="form" style="display: none;">
+                    <h3 style="margin-bottom: 24px; font-size: 20px; font-weight: 700;">Project Details</h3>
+                    <form onsubmit="save(event)">
+                        <input type="hidden" id="editId">
+                        <div class="field">
+                            <label>Name</label>
+                            <input type="text" id="name" required>
+                        </div>
+                        <div class="field">
+                            <label>Description</label>
+                            <textarea id="description" required></textarea>
+                        </div>
+                        <div class="field">
+                            <label>Category</label>
+                            <select id="category" required>
+                                <option value="DeFi">DeFi</option>
+                                <option value="Gaming">Gaming</option>
+                                <option value="NFT">NFT</option>
+                                <option value="Infrastructure">Infrastructure</option>
+                                <option value="Social">Social</option>
+                                <option value="AI">AI</option>
+                                <option value="Liquid Staking">Liquid Staking</option>
+                                <option value="Lending">Lending</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Logo (filename)</label>
+                            <input type="text" id="logo" placeholder="bean.jpg">
+                        </div>
+                        <div class="field">
+                            <label>Website</label>
+                            <input type="url" id="website">
+                        </div>
+                        <div class="field">
+                            <label>Twitter/X</label>
+                            <input type="url" id="twitter">
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn">Save</button>
+                            <button type="button" class="btn btn-sec" onclick="hideForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="table">
+                    <h3 style="margin-bottom: 24px; font-size: 20px; font-weight: 700;">All Projects</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Links</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCt-I2vo7_OOCokCoHIUV_caNxsFJpEPqM",
+            authDomain: "nadiscovery-c43aa.firebaseapp.com",
+            projectId: "nadiscovery-c43aa",
+            storageBucket: "nadiscovery-c43aa.firebasestorage.app",
+            messagingSenderId: "1060132821025",
+            appId: "1:1060132821025:web:f5c60ce29f7586ba6c6b60",
+            measurementId: "G-ZXTM24PHJZ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let projects = [];
+        let currentCat = 'all';
+        let loggedIn = false;
+
+        // Three.js
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d'), alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const particles = new THREE.BufferGeometry();
+        const pCount = 2000;
+        const positions = new Float32Array(pCount * 3);
+
+        for (let i = 0; i < pCount * 3; i++) {
+            positions[i] = (Math.random() - 0.5) * 80;
+        }
+
+        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const pMat = new THREE.PointsMaterial({ color: 0x8b5cf6, size: 0.08 });
+        const pSys = new THREE.Points(particles, pMat);
+        scene.add(pSys);
+
+        camera.position.z = 40;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            pSys.rotation.x += 0.0002;
+            pSys.rotation.y += 0.0004;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Load
+        async function load() {
+            try {
+                const snap = await getDocs(collection(db, "projects"));
+                projects = [];
+                snap.forEach(d => projects.push({ id: d.id, ...d.data() }));
+                render();
+                renderCats();
+            } catch (e) {
+                document.getElementById('grid').innerHTML = '<div class="empty">Error loading</div>';
+            }
+        }
+
+        function render() {
+            const search = document.getElementById('search').value.toLowerCase();
+            const filtered = projects.filter(p => {
+                const matchSearch = p.name.toLowerCase().includes(search) || p.description.toLowerCase().includes(search);
+                const matchCat = currentCat === 'all' || p.category === currentCat;
+                return matchSearch && matchCat;
+            });
+
+            const grid = document.getElementById('grid');
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = '<div class="empty">No projects found</div>';
+                return;
+            }
+
+            grid.innerHTML = filtered.map(p => `
+                <div class="card">
+                    <div class="card-top">
+                        <img src="${p.logo || 'https://via.placeholder.com/64'}" class="proj-logo" onerror="this.src='https://via.placeholder.com/64'">
+                        <div class="proj-info">
+                            <h3>${p.name}</h3>
+                            <span class="tag">${p.category}</span>
+                        </div>
+                    </div>
+                    <p class="desc">${p.description}</p>
+                    <div class="links">
+                        ${p.website ? `<a href="${p.website}" target="_blank" class="link">Website</a>` : ''}
+                        ${p.twitter ? `<a href="${p.twitter}" target="_blank" class="link">Twitter</a>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderCats() {
+            const cats = ['all', ...new Set(projects.map(p => p.category))];
+            document.getElementById('cats').innerHTML = cats.map(c => `
+                <button class="cat ${c === currentCat ? 'on' : ''}" onclick="setCat('${c}')">${c}</button>
+            `).join('');
+        }
+
+        window.setCat = (c) => {
+            currentCat = c;
+            renderCats();
+            render();
+        };
+
+        window.filter = render;
+
+        // Modal
+        window.openModal = () => document.getElementById('modal').classList.add('show');
+        window.closeModal = () => {
+            document.getElementById('modal').classList.remove('show');
+            if (loggedIn) logout();
+        };
+
+        // Auth
+        window.login = () => {
+            if (document.getElementById('pass').value === 'qowiyykareem') {
+                loggedIn = true;
+                document.getElementById('login').style.display = 'none';
+                document.getElementById('admin').style.display = 'block';
+                loadTable();
+            } else {
+                alert('Wrong password');
+            }
+        };
+
+        window.logout = () => {
+            loggedIn = false;
+            document.getElementById('login').style.display = 'block';
+            document.getElementById('admin').style.display = 'none';
+            document.getElementById('pass').value = '';
+            hideForm();
+        };
+
+        // Form
+        window.showAdd = () => {
+            document.getElementById('form').style.display = 'block';
+            document.getElementById('table').style.display = 'none';
+            document.getElementById('editId').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('category').value = 'DeFi';
+            document.getElementById('logo').value = '';
+            document.getElementById('website').value = '';
+            document.getElementById('twitter').value = '';
+        };
+
+        window.hideForm = () => {
+            document.getElementById('form').style.display = 'none';
+            document.getElementById('table').style.display = 'block';
+        };
+
+        window.save = async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('name').value,
+                description: document.getElementById('description').value,
+                category: document.getElementById('category').value,
+                logo: document.getElementById('logo').value,
+                website: document.getElementById('website').value,
+                twitter: document.getElementById('twitter').value,
+            };
+
+            const id = document.getElementById('editId').value;
+
+            try {
+                if (id) {
+                    await updateDoc(doc(db, "projects", id), data);
+                } else {
+                    await addDoc(collection(db, "projects"), data);
+                }
+                await load();
+                loadTable();
+                hideForm();
+                alert('Saved!');
+            } catch (e) {
+                alert('Error');
+            }
+        };
+
+        window.edit = (id) => {
+            const p = projects.find(x => x.id === id);
+            if (p) {
+                document.getElementById('form').style.display = 'block';
+                document.getElementById('table').style.display = 'none';
+                document.getElementById('editId').value = p.id;
+                document.getElementById('name').value = p.name;
+                document.getElementById('description').value = p.description;
+                document.getElementById('category').value = p.category;
+                document.getElementById('logo').value = p.logo || '';
+                document.getElementById('website').value = p.website || '';
+                document.getElementById('twitter').value = p.twitter || '';
+            }
+        };
+
+        window.del = async (id) => {
+            if (confirm('Delete?')) {
+                try {
+                    await deleteDoc(doc(db, "projects", id));
+                    await load();
+                    loadTable();
+                    alert('Deleted!');
+                } catch (e) {
+                    alert('Error');
+                }
+            }
+        };
+
+        function loadTable() {
+            document.getElementById('tbody').innerHTML = projects.map(p => `
+                <tr>
+                    <td>${p.name}</td>
+                    <td>${p.category}</td>
+                    <td>
+                        ${p.website ? `<a href="${p.website}" target="_blank" style="color: #8b5cf6;">Web</a>` : '-'}
+                        ${p.twitter ? ` / <a href="${p.twitter}" target="_blank" style="color: #8b5cf6;">X</a>` : ''}
+                    </td>
+                    <td>
+                        <div class="acts">
+                            <button class="btn btn-sm" onclick="edit('${p.id}')">Edit</button>
+                            <button class="btn btn-sm btn-del" onclick="del('${p.id}')">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        load();
+    </script>
+</body>
+</html>
