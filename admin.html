@@ -480,10 +480,10 @@
                         </div>
                     </div>
                     <div class="btn-group">
-                        <button type="submit" class="btn">Save Project</button>
+                        <button type="button" class="btn" onclick="handleSave()">Save Project</button>
                         <button type="button" class="btn btn-sec" onclick="hideForm()">Cancel</button>
                     </div>
-                </form>
+                </div>
             </div>
 
             <!-- Projects Table -->
@@ -631,14 +631,22 @@
             document.getElementById('formContainer').classList.remove('active');
         };
 
-        window.handleSave = async function(e) {
-            e.preventDefault();
-            console.log('Form submitted');
+        window.handleSave = async function() {
+            console.log('Save button clicked');
+            
+            const name = document.getElementById('name').value;
+            const description = document.getElementById('description').value;
+            const category = document.getElementById('category').value;
+            
+            if (!name || !description) {
+                showToast('Please fill in required fields');
+                return;
+            }
             
             const data = {
-                name: document.getElementById('name').value,
-                description: document.getElementById('description').value,
-                category: document.getElementById('category').value,
+                name: name,
+                description: description,
+                category: category,
                 logo: document.getElementById('logo').value,
                 website: document.getElementById('website').value,
                 twitter: document.getElementById('twitter').value,
@@ -664,7 +672,6 @@
                 console.error('Error saving:', error);
                 showToast('Error: ' + error.message);
             }
-            return false;
         };
 
         window.edit = function(id) {
