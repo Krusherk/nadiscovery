@@ -944,7 +944,7 @@
             grid.innerHTML = filtered.map(p => `
                 <div class="card">
                     <div class="card-top">
-                        <img src="${p.logo || 'https://via.placeholder.com/64'}" class="proj-logo" onerror="this.src='https://via.placeholder.com/64'">
+                        <img src="${p.logo ? 'Logos/' + p.logo : 'https://via.placeholder.com/64'}" class="proj-logo" onerror="this.src='https://via.placeholder.com/64'">
                         <div class="proj-info">
                             <h3>${p.name}</h3>
                             <span class="tag">${p.category}</span>
