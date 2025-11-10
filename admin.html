@@ -436,7 +436,7 @@
                     <h2 id="formTitle">Add New Project</h2>
                     <button class="btn btn-sec btn-sm" onclick="hideForm()">Cancel</button>
                 </div>
-                <form onsubmit="save(event)">
+                <form onsubmit="return false;">
                     <input type="hidden" id="editId">
                     <div class="form-grid">
                         <div class="field">
@@ -483,7 +483,7 @@
                         <button type="button" class="btn" onclick="handleSave()">Save Project</button>
                         <button type="button" class="btn btn-sec" onclick="hideForm()">Cancel</button>
                     </div>
-                </div>
+                </form>
             </div>
 
             <!-- Projects Table -->
@@ -514,12 +514,13 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, get, set, update, remove, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCt-I2vo7_OOCokCoHIUV_caNxsFJpEPqM",
             authDomain: "nadiscovery-c43aa.firebaseapp.com",
+            databaseURL: "https://nadiscovery-c43aa-default-rtdb.firebaseio.com",
             projectId: "nadiscovery-c43aa",
             storageBucket: "nadiscovery-c43aa.firebasestorage.app",
             messagingSenderId: "1060132821025",
@@ -528,7 +529,7 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const db = getDatabase(app);
 
         let projects = [];
         let allProjects = [];
@@ -556,18 +557,26 @@
             hideForm();
         };
 
-        // Load projects
+        // Load projects from Realtime Database
         async function load() {
             try {
-                const snap = await getDocs(collection(db, "projects"));
+                const projectsRef = ref(db, 'projects');
+                const snapshot = await get(projectsRef);
+                
                 projects = [];
-                snap.forEach(d => projects.push({ id: d.id, ...d.data() }));
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    Object.keys(data).forEach(key => {
+                        projects.push({ id: key, ...data[key] });
+                    });
+                }
+                
                 allProjects = [...projects];
                 updateStats();
                 renderTable();
             } catch (e) {
                 console.error('Load error:', e);
-                showToast('Error loading projects');
+                showToast('Error loading projects: ' + e.message);
                 document.getElementById('tbody').innerHTML = '<tr><td colspan="6" class="empty">Error loading</td></tr>';
             }
         }
@@ -633,18 +642,11 @@
         };
 
         window.handleSave = async function() {
-            alert('Save function called!');
-            console.log('Save button clicked');
-            
-            const name = document.getElementById('name').value;
-            const description = document.getElementById('description').value;
+            const name = document.getElementById('name').value.trim();
+            const description = document.getElementById('description').value.trim();
             const category = document.getElementById('category').value;
             
-            console.log('Name:', name);
-            console.log('Description:', description);
-            
             if (!name || !description) {
-                alert('Please fill in required fields');
                 showToast('Please fill in required fields');
                 return;
             }
@@ -653,39 +655,37 @@
                 name: name,
                 description: description,
                 category: category,
-                logo: document.getElementById('logo').value || '',
-                website: document.getElementById('website').value || '',
-                twitter: document.getElementById('twitter').value || '',
+                logo: document.getElementById('logo').value.trim() || '',
+                website: document.getElementById('website').value.trim() || '',
+                twitter: document.getElementById('twitter').value.trim() || '',
+                updatedAt: Date.now()
             };
-
-            console.log('Data to save:', data);
 
             const id = document.getElementById('editId').value;
 
             try {
                 if (id) {
-                    console.log('Updating project:', id);
-                    await updateDoc(doc(db, "projects", id), data);
-                    alert('Project updated!');
-                    showToast('Project updated!');
+                    // Update existing project
+                    const projectRef = ref(db, `projects/${id}`);
+                    await update(projectRef, data);
+                    showToast('Project updated successfully!');
                 } else {
-                    console.log('Adding new project');
-                    const docRef = await addDoc(collection(db, "projects"), data);
-                    console.log('Document added with ID:', docRef.id);
-                    alert('Project added successfully!');
-                    showToast('Project added!');
+                    // Add new project
+                    const projectsRef = ref(db, 'projects');
+                    const newProjectRef = push(projectsRef);
+                    await set(newProjectRef, data);
+                    showToast('Project added successfully!');
                 }
+                
                 await load();
                 hideForm();
             } catch (error) {
                 console.error('Error saving:', error);
-                alert('Error: ' + error.message);
                 showToast('Error: ' + error.message);
             }
         };
 
         window.edit = function(id) {
-            console.log('Editing project:', id);
             const p = allProjects.find(x => x.id === id);
             if (p) {
                 document.getElementById('formContainer').classList.add('active');
@@ -701,11 +701,11 @@
         };
 
         window.del = async function(id) {
-            console.log('Deleting project:', id);
             if (confirm('Are you sure you want to delete this project?')) {
                 try {
-                    await deleteDoc(doc(db, "projects", id));
-                    showToast('Project deleted!');
+                    const projectRef = ref(db, `projects/${id}`);
+                    await remove(projectRef);
+                    showToast('Project deleted successfully!');
                     await load();
                 } catch (error) {
                     console.error('Delete error:', error);
