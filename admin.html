@@ -598,7 +598,7 @@
 
             tbody.innerHTML = projects.map(p => `
                 <tr>
-                    <td><img src="${p.logo || 'https://via.placeholder.com/40'}" class="proj-logo-small" onerror="this.src='https://via.placeholder.com/40'"></td>
+                   <td><img src="${p.logo ? 'Logos/' + p.logo : 'https://via.placeholder.com/40'}" class="proj-logo-small" onerror="this.src='https://via.placeholder.com/40'"></td>
                     <td style="font-weight: 600;">${p.name}</td>
                     <td><span class="cat-badge">${p.category}</span></td>
                     <td>${p.website ? `<a href="${p.website}" target="_blank" style="color: #8b5cf6;">View</a>` : '-'}</td>
