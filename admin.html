@@ -425,6 +425,10 @@
                     <div class="stat-value" id="totalCategories">0</div>
                 </div>
                 <div class="stat-card">
+                    <div class="stat-label">Pending Reviews</div>
+                    <div class="stat-value" id="pendingReviews">0</div>
+                </div>
+                <div class="stat-card">
                     <div class="stat-label">Last Updated</div>
                     <div class="stat-value" style="font-size: 18px;" id="lastUpdated">-</div>
                 </div>
@@ -510,6 +514,30 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Submissions Table -->
+            <div class="table-container" style="margin-top: 40px;">
+                <div class="table-header">
+                    <h2>Pending Submissions</h2>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Email</th>
+                            <th>Description</th>
+                            <th>Links</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="submissionsTbody">
+                        <tr>
+                            <td colspan="6" class="empty">Loading submissions...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -533,11 +561,12 @@
 
         let projects = [];
         let allProjects = [];
+        let submissions = [];
         let loggedIn = false;
 
         // Login
         window.login = function() {
-            if (document.getElementById('pass').value === 'bigdih12$') {
+            if (document.getElementById('pass').value === 'qowiyykareem') {
                 loggedIn = true;
                 document.getElementById('loginBox').style.display = 'none';
                 document.getElementById('adminPanel').classList.add('active');
@@ -571,9 +600,13 @@
                     });
                 }
                 
+                // Sort alphabetically by name
+                projects.sort((a, b) => a.name.localeCompare(b.name));
+                
                 allProjects = [...projects];
                 updateStats();
                 renderTable();
+                loadSubmissions();
             } catch (e) {
                 console.error('Load error:', e);
                 showToast('Error loading projects: ' + e.message);
@@ -581,10 +614,103 @@
             }
         }
 
+        // Load submissions
+        async function loadSubmissions() {
+            try {
+                const submissionsRef = ref(db, 'submissions');
+                const snapshot = await get(submissionsRef);
+                
+                submissions = [];
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    Object.keys(data).forEach(key => {
+                        submissions.push({ id: key, ...data[key] });
+                    });
+                }
+                
+                renderSubmissions();
+                updateStats();
+            } catch (e) {
+                console.error('Submissions load error:', e);
+                document.getElementById('submissionsTbody').innerHTML = '<tr><td colspan="6" class="empty">Error loading submissions</td></tr>';
+            }
+        }
+
+        function renderSubmissions() {
+            const tbody = document.getElementById('submissionsTbody');
+            
+            if (submissions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty">No pending submissions</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = submissions.map(s => `
+                <tr>
+                    <td style="font-weight: 600;">${s.name}</td>
+                    <td><span class="cat-badge">${s.category}</span></td>
+                    <td style="font-size: 12px;">${s.email}</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.description}</td>
+                    <td style="font-size: 12px;">
+                        ${s.website ? `<a href="${s.website}" target="_blank" style="color: #8b5cf6;">Web</a>` : '-'}
+                        ${s.twitter ? ` / <a href="${s.twitter}" target="_blank" style="color: #8b5cf6;">X</a>` : ''}
+                    </td>
+                    <td>
+                        <div class="acts">
+                            <button class="btn btn-sm" onclick="approveSubmission('${s.id}', '${s.name}', '${s.category}', \`${s.description.replace(/`/g, '\\`')}\`, '${s.website || ''}', '${s.twitter || ''}')">Approve</button>
+                            <button class="btn btn-sm btn-del" onclick="rejectSubmission('${s.id}')">Reject</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.approveSubmission = async function(id, name, category, description, website, twitter) {
+            try {
+                // Add to projects
+                const projectsRef = ref(db, 'projects');
+                const newProjectRef = push(projectsRef);
+                await set(newProjectRef, {
+                    name: name,
+                    description: description,
+                    category: category,
+                    logo: '',
+                    website: website,
+                    twitter: twitter,
+                    updatedAt: Date.now()
+                });
+                
+                // Delete from submissions
+                const submissionRef = ref(db, `submissions/${id}`);
+                await remove(submissionRef);
+                
+                showToast('Submission approved and added to projects!');
+                await load();
+            } catch (error) {
+                console.error('Approve error:', error);
+                showToast('Error: ' + error.message);
+            }
+        };
+
+        window.rejectSubmission = async function(id) {
+            if (confirm('Are you sure you want to reject this submission?')) {
+                try {
+                    const submissionRef = ref(db, `submissions/${id}`);
+                    await remove(submissionRef);
+                    showToast('Submission rejected');
+                    await loadSubmissions();
+                    updateStats();
+                } catch (error) {
+                    console.error('Reject error:', error);
+                    showToast('Error: ' + error.message);
+                }
+            }
+        };
+
         function updateStats() {
             document.getElementById('totalProjects').textContent = projects.length;
             const cats = new Set(projects.map(p => p.category));
             document.getElementById('totalCategories').textContent = cats.size;
+            document.getElementById('pendingReviews').textContent = submissions.length;
             document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString();
         }
 
