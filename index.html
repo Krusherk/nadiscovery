@@ -82,6 +82,46 @@
             transform: translate(-50%, -50%);
         }
 
+        .custom-cursor {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #8b5cf6;
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease, width 0.2s ease, height 0.2s ease;
+            mix-blend-mode: difference;
+        }
+
+        .custom-cursor::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 4px;
+            background: #8b5cf6;
+            border-radius: 50%;
+        }
+
+        .custom-cursor.hover {
+            width: 40px;
+            height: 40px;
+            background: rgba(139, 92, 246, 0.1);
+            border-color: #6366f1;
+        }
+
+        body {
+            cursor: none;
+        }
+
+        a, button, .card, .cat {
+            cursor: none;
+        }
+
         .wrap {
             max-width: 1400px;
             margin: 0 auto;
@@ -288,6 +328,14 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
         }
 
         .desc {
@@ -554,6 +602,7 @@
     <div class="glow glow-1"></div>
     <div class="glow glow-2"></div>
     <div class="cursor-glow" id="cursorGlow"></div>
+    <div class="custom-cursor" id="customCursor"></div>
     <canvas id="canvas3d"></canvas>
 
     <!-- Prize Popup -->
@@ -611,17 +660,21 @@
                 </div>
                 <div class="field">
                     <label>Category</label>
-                    <select id="reqCategory" required>
+                    <select id="reqCategory" required multiple size="5" style="min-height: 120px;">
                         <option value="DeFi">DeFi</option>
                         <option value="Gaming">Gaming</option>
                         <option value="NFT">NFT</option>
                         <option value="Infrastructure">Infrastructure</option>
                         <option value="Social">Social</option>
                         <option value="AI">AI</option>
+                        <option value="Identity">Identity</option>
+                        <option value="Prediction Market">Prediction Market</option>
+                        <option value="RWA">RWA</option>
                         <option value="Liquid Staking">Liquid Staking</option>
                         <option value="Lending">Lending</option>
                         <option value="Other">Other</option>
                     </select>
+                    <small style="color: rgba(255, 255, 255, 0.4); font-size: 12px;">Hold Ctrl/Cmd to select multiple</small>
                 </div>
                 <div class="field">
                     <label>Website URL</label>
@@ -663,6 +716,8 @@
 
         let projects = [];
         let currentCat = 'all';
+        let recommendedProjects = [];
+        let logoSpheres = [];
 
         // Modal
         window.openSubmitModal = () => document.getElementById('modal').classList.add('show');
@@ -680,10 +735,18 @@
         window.submitRequest = async (e) => {
             e.preventDefault();
             
+            const categorySelect = document.getElementById('reqCategory');
+            const selectedCategories = Array.from(categorySelect.selectedOptions).map(opt => opt.value);
+            
+            if (selectedCategories.length === 0) {
+                showToast('Please select at least one category');
+                return;
+            }
+            
             const data = {
                 name: document.getElementById('reqName').value,
                 description: document.getElementById('reqDescription').value,
-                category: document.getElementById('reqCategory').value,
+                categories: selectedCategories,
                 website: document.getElementById('reqWebsite').value || '',
                 twitter: document.getElementById('reqTwitter').value || '',
                 email: document.getElementById('reqEmail').value,
@@ -712,7 +775,26 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // Prize Popup Logic
+        // Custom Cursor
+        const customCursor = document.getElementById('customCursor');
+        
+        document.addEventListener('mousemove', (e) => {
+            customCursor.style.left = e.clientX + 'px';
+            customCursor.style.top = e.clientY + 'px';
+        });
+
+        // Hover effect for interactive elements
+        document.addEventListener('mouseover', (e) => {
+            if (e.target.closest('a, button, .card, .cat')) {
+                customCursor.classList.add('hover');
+            }
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            if (e.target.closest('a, button, .card, .cat')) {
+                customCursor.classList.remove('hover');
+            }
+        });
         const prizePopup = document.getElementById('prizePopup');
         let popupTimeout;
 
@@ -967,6 +1049,7 @@
             
             updateParticles();
             updateCamera();
+            updateLogoSpheres(time);
             renderer.render(scene, camera);
         }
         animate();
@@ -1021,7 +1104,8 @@
             const search = document.getElementById('search').value.toLowerCase();
             const filtered = projects.filter(p => {
                 const matchSearch = p.name.toLowerCase().includes(search) || p.description.toLowerCase().includes(search);
-                const matchCat = currentCat === 'all' || p.category === currentCat;
+                const categories = Array.isArray(p.categories) ? p.categories : [p.category];
+                const matchCat = currentCat === 'all' || categories.includes(currentCat);
                 return matchSearch && matchCat;
             });
 
@@ -1032,16 +1116,28 @@
             
             if (filtered.length === 0) {
                 grid.innerHTML = '<div class="empty">No projects found</div>';
+                clearLogoSpheres();
                 return;
             }
 
-            grid.innerHTML = filtered.map(p => `
+            // Smart recommendations based on search
+            if (search) {
+                recommendSmartProjects(search, filtered);
+            } else {
+                clearLogoSpheres();
+            }
+
+            grid.innerHTML = filtered.map(p => {
+                const categories = Array.isArray(p.categories) ? p.categories : [p.category];
+                return `
                 <div class="card">
                     <div class="card-top">
                         <img src="${p.logo ? 'Logos/' + p.logo : 'https://via.placeholder.com/64'}" class="proj-logo" onerror="this.src='https://via.placeholder.com/64'">
                         <div class="proj-info">
                             <h3>${p.name}</h3>
-                            <span class="tag">${p.category}</span>
+                            <div class="tags-container">
+                                ${categories.map(cat => `<span class="tag">${cat}</span>`).join('')}
+                            </div>
                         </div>
                     </div>
                     <p class="desc">${p.description}</p>
@@ -1054,14 +1150,106 @@
                         </a>` : ''}
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function renderCats() {
-            const cats = ['all', ...new Set(projects.map(p => p.category))];
+            const allCategories = new Set();
+            projects.forEach(p => {
+                const categories = Array.isArray(p.categories) ? p.categories : [p.category];
+                categories.forEach(cat => allCategories.add(cat));
+            });
+            
+            const cats = ['all', ...Array.from(allCategories).sort()];
             document.getElementById('cats').innerHTML = cats.map(c => `
                 <button class="cat ${c === currentCat ? 'on' : ''}" onclick="setCat('${c}')">${c}</button>
             `).join('');
+        }
+
+        // Smart recommendations with 3D logo spheres
+        function recommendSmartProjects(searchTerm, filteredProjects) {
+            if (filteredProjects.length === 0 || logoSpheres.length > 0) return;
+            
+            // Get up to 5 recommended projects
+            recommendedProjects = filteredProjects.slice(0, 5);
+            
+            recommendedProjects.forEach((project, index) => {
+                if (project.logo) {
+                    createLogoSphere(project, index);
+                }
+            });
+        }
+
+        function createLogoSphere(project, index) {
+            // Create sphere geometry
+            const geometry = new THREE.SphereGeometry(2, 32, 32);
+            
+            // Load texture
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load(
+                'Logos/' + project.logo,
+                (texture) => {
+                    const material = new THREE.MeshBasicMaterial({ 
+                        map: texture,
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    
+                    const sphere = new THREE.Mesh(geometry, material);
+                    
+                    // Position spheres in a circle around camera
+                    const angle = (index / recommendedProjects.length) * Math.PI * 2;
+                    const radius = 20;
+                    sphere.position.x = Math.cos(angle) * radius;
+                    sphere.position.y = Math.sin(angle) * radius * 0.5;
+                    sphere.position.z = 30;
+                    
+                    // Add rotation data
+                    sphere.userData = {
+                        rotationSpeed: 0.01 + Math.random() * 0.02,
+                        floatSpeed: 0.5 + Math.random(),
+                        floatOffset: Math.random() * Math.PI * 2,
+                        project: project
+                    };
+                    
+                    scene.add(sphere);
+                    logoSpheres.push(sphere);
+                },
+                undefined,
+                (error) => {
+                    console.log('Logo texture load error:', error);
+                }
+            );
+        }
+
+        function clearLogoSpheres() {
+            logoSpheres.forEach(sphere => {
+                scene.remove(sphere);
+                if (sphere.geometry) sphere.geometry.dispose();
+                if (sphere.material) {
+                    if (sphere.material.map) sphere.material.map.dispose();
+                    sphere.material.dispose();
+                }
+            });
+            logoSpheres = [];
+            recommendedProjects = [];
+        }
+
+        function updateLogoSpheres(time) {
+            logoSpheres.forEach((sphere, index) => {
+                // Rotate sphere
+                sphere.rotation.y += sphere.userData.rotationSpeed;
+                
+                // Float up and down
+                const floatY = Math.sin(time * sphere.userData.floatSpeed + sphere.userData.floatOffset) * 3;
+                const angle = (index / logoSpheres.length) * Math.PI * 2 + time * 0.2;
+                const radius = 20;
+                
+                sphere.position.x = Math.cos(angle) * radius;
+                sphere.position.y = Math.sin(angle) * radius * 0.5 + floatY;
+                sphere.position.z = 30 + Math.sin(time + index) * 5;
+            });
         }
 
         window.setCat = (c) => {
