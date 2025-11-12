@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Project Uploader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(15, 15, 15, 0.8);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 20px;
+            background: rgba(139, 92, 246, 0.04);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 20px;
+            resize: vertical;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 12px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-sec {
+            background: transparent;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .success {
+            color: #4ade80;
+        }
+
+        .error {
+            color: #ef4444;
+        }
+
+        .info {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .progress {
+            margin-top: 10px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bulk Project Uploader</h1>
+        <p class="info">Paste your project data below (TSV format). The script will parse and upload them to Firebase.</p>
+        
+        <textarea id="projectData" placeholder="Paste your project data here..."></textarea>
+        
+        <button class="btn" onclick="uploadProjects()">Upload All Projects</button>
+        <button class="btn btn-sec" onclick="testParse()">Test Parse (No Upload)</button>
+        
+        <div id="status"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, get, set, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCt-I2vo7_OOCokCoHIUV_caNxsFJpEPqM",
+            authDomain: "nadiscovery-c43aa.firebaseapp.com",
+            databaseURL: "https://nadiscovery-c43aa-default-rtdb.firebaseio.com",
+            projectId: "nadiscovery-c43aa",
+            storageBucket: "nadiscovery-c43aa.firebasestorage.app",
+            messagingSenderId: "1060132821025",
+            appId: "1:1060132821025:web:f5c60ce29f7586ba6c6b60",
+            measurementId: "G-ZXTM24PHJZ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        function parseProjectData(text) {
+            const lines = text.trim().split('\n');
+            const projects = [];
+            
+            for (let line of lines) {
+                if (!line.trim()) continue;
+                
+                const parts = line.split('\t');
+                if (parts.length < 4) continue;
+                
+                const [name, logoUrl, type, categoriesRaw, twitter, website, banner, description] = parts;
+                
+                // Parse categories
+                const categories = categoriesRaw ? categoriesRaw.split(',').map(c => c.trim()) : ['Other'];
+                
+                // Extract logo filename from URL
+                let logo = '';
+                if (logoUrl) {
+                    const urlParts = logoUrl.split('/');
+                    logo = urlParts[urlParts.length - 1];
+                }
+                
+                projects.push({
+                    name: name.trim(),
+                    description: description ? description.trim() : '',
+                    categories: categories,
+                    logo: logo,
+                    website: website ? website.trim() : '',
+                    twitter: twitter ? twitter.trim() : '',
+                    updatedAt: Date.now()
+                });
+            }
+            
+            return projects;
+        }
+
+        window.testParse = function() {
+            const text = document.getElementById('projectData').value;
+            const projects = parseProjectData(text);
+            
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status';
+            statusDiv.innerHTML = `
+                <div class="success">✓ Successfully parsed ${projects.length} projects</div>
+                <div class="info" style="margin-top: 10px;">
+                    Sample project:<br>
+                    <pre style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+${projects[0] ? JSON.stringify(projects[0], null, 2) : 'No projects found'}
+                    </pre>
+                </div>
+            `;
+        };
+
+        window.uploadProjects = async function() {
+            const text = document.getElementById('projectData').value;
+            const projects = parseProjectData(text);
+            
+            if (projects.length === 0) {
+                document.getElementById('status').innerHTML = '<div class="error">No valid projects found to upload</div>';
+                return;
+            }
+            
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status';
+            statusDiv.innerHTML = '<div class="info">Starting upload...</div>';
+            
+            let uploaded = 0;
+            let skipped = 0;
+            let errors = 0;
+            
+            try {
+                // Get existing projects to check for duplicates
+                const projectsRef = ref(db, 'projects');
+                const snapshot = await get(projectsRef);
+                const existingProjects = new Set();
+                
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    Object.values(data).forEach(p => {
+                        existingProjects.add(p.name.toLowerCase().trim());
+                    });
+                }
+                
+                statusDiv.innerHTML += `<div class="info">Found ${existingProjects.size} existing projects. Checking for duplicates...</div>`;
+                
+                for (let i = 0; i < projects.length; i++) {
+                    const project = projects[i];
+                    
+                    statusDiv.innerHTML += `<div class="progress">Processing ${i + 1}/${projects.length}: ${project.name}...</div>`;
+                    
+                    // Check if project already exists
+                    if (existingProjects.has(project.name.toLowerCase().trim())) {
+                        skipped++;
+                        statusDiv.innerHTML += `<div class="info">⊘ Skipped (already exists): ${project.name}</div>`;
+                        continue;
+                    }
+                    
+                    try {
+                        const newProjectRef = push(projectsRef);
+                        await set(newProjectRef, project);
+                        uploaded++;
+                        statusDiv.innerHTML += `<div class="success">✓ Uploaded: ${project.name}</div>`;
+                    } catch (error) {
+                        errors++;
+                        statusDiv.innerHTML += `<div class="error">✗ Failed: ${project.name} - ${error.message}</div>`;
+                    }
+                    
+                    // Add small delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                statusDiv.innerHTML += `
+                    <div class="success" style="margin-top: 20px; font-size: 16px; font-weight: 700;">
+                        ✓ Upload Complete!<br>
+                        Uploaded: ${uploaded}<br>
+                        Skipped (duplicates): ${skipped}<br>
+                        Errors: ${errors}
+                    </div>
+                `;
+                
+            } catch (error) {
+                statusDiv.innerHTML += `<div class="error">Fatal error: ${error.message}</div>`;
+            }
+        };
+    </script>
+</body>
+</html>
