@@ -789,9 +789,12 @@
         const customCursor = document.getElementById('customCursor');
         
         document.addEventListener('mousemove', (e) => {
-            customCursor.style.left = e.clientX + 'px';
-            customCursor.style.top = e.clientY + 'px';
+            if (customCursor) {
+                customCursor.style.left = e.clientX + 'px';
+                customCursor.style.top = e.clientY + 'px';
+            }
         });
+        
         const prizePopup = document.getElementById('prizePopup');
         let popupTimeout;
 
@@ -1126,10 +1129,13 @@
 
             grid.innerHTML = filtered.map(p => {
                 const categories = Array.isArray(p.categories) ? p.categories : [p.category];
+                // Handle both CDN URLs and local files
+                const logoUrl = p.logo ? (p.logo.startsWith('http') ? p.logo : 'Logos/' + p.logo) : 'https://via.placeholder.com/64';
+                
                 return `
                 <div class="card">
                     <div class="card-top">
-                        <img src="${p.logo ? 'Logos/' + p.logo : 'https://via.placeholder.com/64'}" class="proj-logo" onerror="this.src='https://via.placeholder.com/64'">
+                        <img src="${logoUrl}" class="proj-logo" onerror="this.src='https://via.placeholder.com/64'">
                         <div class="proj-info">
                             <h3>${p.name}</h3>
                             <div class="tags-container">
