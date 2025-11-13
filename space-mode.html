@@ -333,7 +333,7 @@
             const textureLoader = new THREE.TextureLoader();
             
             projects.forEach((project, index) => {
-                const geometry = new THREE.SphereGeometry(3, 32, 32);
+                const geometry = new THREE.SphereGeometry(4.5, 32, 32);
                 const logoUrl = project.logo.startsWith('http') ? project.logo : 'Logos/' + project.logo;
                 
                 textureLoader.load(
