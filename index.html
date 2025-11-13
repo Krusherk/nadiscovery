@@ -138,12 +138,57 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .submit-btn:hover {
             background: rgba(139, 92, 246, 0.2);
             border-color: rgba(139, 92, 246, 0.5);
             transform: translateY(-2px);
+        }
+
+        .space-mode-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .space-mode-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5);
+        }
+
+        .logo-sphere {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .logo-sphere:hover {
+            transform: scale(1.2);
+        }
+
+        .logo-tooltip {
+            position: fixed;
+            background: rgba(15, 15, 15, 0.95);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: 600;
+            pointer-events: none;
+            z-index: 10000;
+            display: none;
+            white-space: nowrap;
         }
 
         .hero {
@@ -563,6 +608,7 @@
     <div class="glow glow-1"></div>
     <div class="glow glow-2"></div>
     <div class="cursor-glow" id="cursorGlow"></div>
+    <div class="logo-tooltip" id="logoTooltip"></div>
     <canvas id="canvas3d"></canvas>
 
     <!-- Prize Popup -->
@@ -579,7 +625,10 @@
                 </div>
                 <div class="brand">NAD Discovery</div>
             </div>
-            <button class="submit-btn" onclick="openSubmitModal()">Submit Your Project</button>
+            <div style="display: flex; gap: 12px;">
+                <button class="submit-btn" onclick="openSubmitModal()">Submit Your Project</button>
+                <a href="space-mode.html" class="space-mode-btn">🚀 Go Space Mode</a>
+            </div>
         </nav>
 
         <div class="hero">
@@ -1117,10 +1166,11 @@
 
         // Smart recommendations with 3D logo spheres
         function recommendSmartProjects(searchTerm, filteredProjects) {
-            if (filteredProjects.length === 0 || logoSpheres.length > 0) return;
+            // Clear old spheres first
+            clearLogoSpheres();
             
-            // Get up to 5 recommended projects
-            recommendedProjects = filteredProjects.slice(0, 5);
+            // Get up to 8 recommended projects
+            recommendedProjects = filteredProjects.slice(0, 8);
             
             recommendedProjects.forEach((project, index) => {
                 if (project.logo) {
@@ -1131,34 +1181,37 @@
 
         function createLogoSphere(project, index) {
             // Create sphere geometry
-            const geometry = new THREE.SphereGeometry(2, 32, 32);
+            const geometry = new THREE.SphereGeometry(2.5, 32, 32);
             
             // Load texture
             const textureLoader = new THREE.TextureLoader();
+            const logoUrl = project.logo.startsWith('http') ? project.logo : 'Logos/' + project.logo;
+            
             textureLoader.load(
-                'Logos/' + project.logo,
+                logoUrl,
                 (texture) => {
                     const material = new THREE.MeshBasicMaterial({ 
                         map: texture,
                         transparent: true,
-                        opacity: 0.9
+                        opacity: 0.95
                     });
                     
                     const sphere = new THREE.Mesh(geometry, material);
                     
                     // Position spheres in a circle around camera
                     const angle = (index / recommendedProjects.length) * Math.PI * 2;
-                    const radius = 20;
+                    const radius = 25;
                     sphere.position.x = Math.cos(angle) * radius;
-                    sphere.position.y = Math.sin(angle) * radius * 0.5;
-                    sphere.position.z = 30;
+                    sphere.position.y = Math.sin(angle) * radius * 0.6;
+                    sphere.position.z = 35;
                     
                     // Add rotation data
                     sphere.userData = {
                         rotationSpeed: 0.01 + Math.random() * 0.02,
                         floatSpeed: 0.5 + Math.random(),
                         floatOffset: Math.random() * Math.PI * 2,
-                        project: project
+                        project: project,
+                        clickable: true
                     };
                     
                     scene.add(sphere);
@@ -1192,13 +1245,53 @@
                 // Float up and down
                 const floatY = Math.sin(time * sphere.userData.floatSpeed + sphere.userData.floatOffset) * 3;
                 const angle = (index / logoSpheres.length) * Math.PI * 2 + time * 0.2;
-                const radius = 20;
+                const radius = 25;
                 
                 sphere.position.x = Math.cos(angle) * radius;
-                sphere.position.y = Math.sin(angle) * radius * 0.5 + floatY;
-                sphere.position.z = 30 + Math.sin(time + index) * 5;
+                sphere.position.y = Math.sin(angle) * radius * 0.6 + floatY;
+                sphere.position.z = 35 + Math.sin(time + index) * 5;
             });
         }
+
+        // Raycaster for detecting clicks on spheres
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const tooltip = document.getElementById('logoTooltip');
+
+        // Track mouse position for raycasting
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // Check for hover
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(logoSpheres);
+            
+            if (intersects.length > 0) {
+                const project = intersects[0].object.userData.project;
+                tooltip.textContent = project.name;
+                tooltip.style.display = 'block';
+                tooltip.style.left = event.clientX + 15 + 'px';
+                tooltip.style.top = event.clientY + 15 + 'px';
+                document.body.style.cursor = 'pointer';
+            } else {
+                tooltip.style.display = 'none';
+                document.body.style.cursor = 'default';
+            }
+        });
+
+        // Handle clicks on spheres
+        window.addEventListener('click', (event) => {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(logoSpheres);
+            
+            if (intersects.length > 0) {
+                const project = intersects[0].object.userData.project;
+                if (project.website) {
+                    window.open(project.website, '_blank');
+                }
+            }
+        });
 
         window.setCat = (c) => {
             currentCat = c;
