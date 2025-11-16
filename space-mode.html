@@ -332,7 +332,21 @@
 
             const textureLoader = new THREE.TextureLoader();
             
-            projects.forEach((project, index) => {
+            // Create multiple copies of projects for infinite loop effect
+            const repeats = 3; // How many times to repeat the project list
+            const allProjects = [];
+            
+            for (let r = 0; r < repeats; r++) {
+                projects.forEach((project, idx) => {
+                    allProjects.push({
+                        ...project,
+                        originalIndex: idx,
+                        repeatIndex: r
+                    });
+                });
+            }
+            
+            allProjects.forEach((project, index) => {
                 const geometry = new THREE.SphereGeometry(4.5, 32, 32);
                 const logoUrl = project.logo.startsWith('http') ? project.logo : 'Logos/' + project.logo;
                 
@@ -353,13 +367,14 @@
                         const distance = 15 + spiralIndex * 3;
                         
                         sphere.position.x = Math.cos(angle) * distance;
-                        sphere.position.y = (spiralIndex - projects.length / 2) * 5;
+                        sphere.position.y = (spiralIndex - allProjects.length / 2) * 5;
                         sphere.position.z = -Math.sin(angle) * distance;
                         
                         sphere.userData = {
                             project: project,
                             rotationSpeed: 0.005 + Math.random() * 0.01,
-                            originalPosition: sphere.position.clone()
+                            originalPosition: sphere.position.clone(),
+                            spiralIndex: spiralIndex
                         };
                         
                         scene.add(sphere);
