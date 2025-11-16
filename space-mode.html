@@ -332,58 +332,55 @@
 
             const textureLoader = new THREE.TextureLoader();
             
-            // Create multiple copies of projects for infinite loop effect
-            const repeats = 3; // How many times to repeat the project list
-            const allProjects = [];
+            // Create a grid of projects in all directions for true infinite feel
+            const gridSize = 5; // 5x5x5 grid
+            const spacing = 40; // Distance between grid points
             
-            for (let r = 0; r < repeats; r++) {
-                projects.forEach((project, idx) => {
-                    allProjects.push({
-                        ...project,
-                        originalIndex: idx,
-                        repeatIndex: r
-                    });
-                });
+            for (let gx = -gridSize; gx <= gridSize; gx++) {
+                for (let gy = -gridSize; gy <= gridSize; gy++) {
+                    for (let gz = -gridSize; gz <= gridSize; gz++) {
+                        // Skip the center area where camera starts
+                        if (Math.abs(gx) <= 1 && Math.abs(gy) <= 1 && Math.abs(gz) <= 1) continue;
+                        
+                        // Pick a random project for this position
+                        const project = projects[Math.floor(Math.random() * projects.length)];
+                        if (!project || !project.logo) continue;
+                        
+                        const geometry = new THREE.SphereGeometry(4.5, 32, 32);
+                        const logoUrl = project.logo.startsWith('http') ? project.logo : 'Logos/' + project.logo;
+                        
+                        textureLoader.load(
+                            logoUrl,
+                            (texture) => {
+                                const material = new THREE.MeshBasicMaterial({ 
+                                    map: texture,
+                                    transparent: true,
+                                    opacity: 1
+                                });
+                                
+                                const sphere = new THREE.Mesh(geometry, material);
+                                
+                                // Position in grid with some randomness
+                                sphere.position.x = gx * spacing + (Math.random() - 0.5) * 10;
+                                sphere.position.y = gy * spacing + (Math.random() - 0.5) * 10;
+                                sphere.position.z = gz * spacing + (Math.random() - 0.5) * 10;
+                                
+                                sphere.userData = {
+                                    project: project,
+                                    rotationSpeed: 0.005 + Math.random() * 0.01,
+                                    originalPosition: sphere.position.clone(),
+                                    gridPos: { x: gx, y: gy, z: gz }
+                                };
+                                
+                                scene.add(sphere);
+                                logoSpheres.push(sphere);
+                            },
+                            undefined,
+                            (error) => console.log('Logo load error:', error)
+                        );
+                    }
+                }
             }
-            
-            allProjects.forEach((project, index) => {
-                const geometry = new THREE.SphereGeometry(4.5, 32, 32);
-                const logoUrl = project.logo.startsWith('http') ? project.logo : 'Logos/' + project.logo;
-                
-                textureLoader.load(
-                    logoUrl,
-                    (texture) => {
-                        const material = new THREE.MeshBasicMaterial({ 
-                            map: texture,
-                            transparent: true,
-                            opacity: 1
-                        });
-                        
-                        const sphere = new THREE.Mesh(geometry, material);
-                        
-                        // Position spheres much closer - starting right in front of camera
-                        const spiralIndex = index;
-                        const angle = spiralIndex * 0.8;
-                        const distance = 8 + spiralIndex * 2; // Much closer start (8 instead of 15) and tighter spacing (2 instead of 3)
-                        
-                        sphere.position.x = Math.cos(angle) * distance;
-                        sphere.position.y = (spiralIndex - allProjects.length / 2) * 3; // Reduced from 5 to 3
-                        sphere.position.z = -Math.sin(angle) * distance;
-                        
-                        sphere.userData = {
-                            project: project,
-                            rotationSpeed: 0.005 + Math.random() * 0.01,
-                            originalPosition: sphere.position.clone(),
-                            spiralIndex: spiralIndex
-                        };
-                        
-                        scene.add(sphere);
-                        logoSpheres.push(sphere);
-                    },
-                    undefined,
-                    (error) => console.log('Logo load error:', error)
-                );
-            });
             
             document.getElementById('loading').style.display = 'none';
         }
@@ -438,7 +435,7 @@
             const cameraDirection = new THREE.Vector3();
             camera.getWorldDirection(cameraDirection);
             
-            const scrollSpeed = event.deltaY * 0.01;
+            const scrollSpeed = event.deltaY * 0.03; // Increased from 0.01 to 0.03 (3x faster scroll)
             camera.position.add(cameraDirection.multiplyScalar(-scrollSpeed));
         }, { passive: false });
 
@@ -448,7 +445,7 @@
             backward: false,
             left: false,
             right: false,
-            speed: 0.5
+            speed: 1.5 // Increased from 0.5 to 1.5 (3x faster)
         };
 
         // Keyboard controls
