@@ -30,6 +30,40 @@
             z-index: 0;
         }
 
+        .search-bar {
+            position: fixed;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 24px;
+            background: rgba(15, 15, 15, 0.9);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-input:focus {
+            background: rgba(15, 15, 15, 0.95);
+            border-color: rgba(139, 92, 246, 0.6);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
         .controls {
             position: fixed;
             bottom: 40px;
@@ -218,6 +252,11 @@
 </head>
 <body>
     <canvas id="canvas3d"></canvas>
+    
+    <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search projects in space...">
+    </div>
+    
     <div class="tooltip" id="tooltip">
         <div class="tooltip-header">
             <img src="" class="tooltip-logo" id="tooltipLogo" alt="">
@@ -279,11 +318,10 @@
 
         // Create infinite starfield that follows camera
         const starGeometry = new THREE.BufferGeometry();
-        const starCount = 10000; // More stars for better coverage
+        const starCount = 10000;
         const starPositions = new Float32Array(starCount * 3);
         
         for (let i = 0; i < starCount * 3; i += 3) {
-            // Distribute stars in a larger sphere around origin
             const radius = 500 + Math.random() * 500;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(2 * Math.random() - 1);
@@ -306,6 +344,13 @@
         // Array to hold project logo spheres
         let logoSpheres = [];
         let projects = [];
+        let searchQuery = '';
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase().trim();
+            createLogoSpheres();
+        });
 
         // Load projects
         const projectsRef = ref(db, 'projects');
@@ -341,36 +386,43 @@
             document.getElementById('loading').style.display = 'none';
         }
 
-        // Dynamic sphere management - creates/removes spheres based on camera position
-        const sphereCache = new Map(); // Store created spheres by grid position
-        const renderDistance = 150; // How far to render spheres
-        const gridSpacing = 60; // Space between grid points
+        // Dynamic sphere management
+        const sphereCache = new Map();
+        const gridSpacing = 60;
 
         function updateProjectsAroundCamera() {
             const textureLoader = new THREE.TextureLoader();
             
-            // Calculate grid position of camera
+            // Filter projects based on search
+            let filteredProjects = projects;
+            if (searchQuery) {
+                filteredProjects = projects.filter(p => {
+                    const matchName = p.name.toLowerCase().includes(searchQuery);
+                    const matchDesc = p.description.toLowerCase().includes(searchQuery);
+                    const categories = Array.isArray(p.categories) ? p.categories : [p.category];
+                    const matchCat = categories.some(cat => cat.toLowerCase().includes(searchQuery));
+                    return matchName || matchDesc || matchCat;
+                });
+            }
+            
+            if (filteredProjects.length === 0) return;
+            
             const camGridX = Math.floor(camera.position.x / gridSpacing);
             const camGridY = Math.floor(camera.position.y / gridSpacing);
             const camGridZ = Math.floor(camera.position.z / gridSpacing);
             
-            const loadRadius = 3; // Load 3 grid cells in each direction
-            
-            // Track which positions should exist
+            const loadRadius = 3;
             const shouldExist = new Set();
             
-            // Create spheres in grid around camera
             for (let gx = camGridX - loadRadius; gx <= camGridX + loadRadius; gx++) {
                 for (let gy = camGridY - loadRadius; gy <= camGridY + loadRadius; gy++) {
                     for (let gz = camGridZ - loadRadius; gz <= camGridZ + loadRadius; gz++) {
                         const key = `${gx},${gy},${gz}`;
                         shouldExist.add(key);
                         
-                        // Skip if already exists
                         if (sphereCache.has(key)) continue;
                         
-                        // Pick a random project
-                        const project = projects[Math.floor(Math.random() * projects.length)];
+                        const project = filteredProjects[Math.floor(Math.random() * filteredProjects.length)];
                         if (!project || !project.logo) continue;
                         
                         const geometry = new THREE.SphereGeometry(4.5, 32, 32);
@@ -387,7 +439,6 @@
                                 
                                 const sphere = new THREE.Mesh(geometry, material);
                                 
-                                // Position at grid point with randomness
                                 sphere.position.x = gx * gridSpacing + (Math.random() - 0.5) * 20;
                                 sphere.position.y = gy * gridSpacing + (Math.random() - 0.5) * 20;
                                 sphere.position.z = gz * gridSpacing + (Math.random() - 0.5) * 20;
@@ -410,7 +461,6 @@
                 }
             }
             
-            // Remove spheres that are too far away
             sphereCache.forEach((sphere, key) => {
                 if (!shouldExist.has(key)) {
                     scene.remove(sphere);
@@ -426,10 +476,9 @@
             });
         }
 
-        // Track last camera position for updates
         let lastCameraGridPos = { x: 0, y: 0, z: 0 };
 
-        // Mouse controls for camera rotation and movement
+        // Mouse controls
         let mouseX = 0;
         let mouseY = 0;
         let isMouseDown = false;
@@ -440,15 +489,12 @@
             mouseX = (event.clientX / window.innerWidth) * 2 - 1;
             mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
             
-            // Move camera with right mouse button
             if (isMouseDown && event.buttons === 2) {
                 const deltaX = event.clientX - lastMouseX;
                 const deltaY = event.clientY - lastMouseY;
                 
                 camera.rotation.y -= deltaX * 0.003;
                 camera.rotation.x -= deltaY * 0.003;
-                
-                // Limit vertical rotation
                 camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
             }
             
@@ -468,31 +514,27 @@
             isMouseDown = false;
         });
         
-        // Prevent context menu on right click
         document.addEventListener('contextmenu', (event) => {
             event.preventDefault();
         });
         
-        // Scroll wheel for forward/backward movement
         document.addEventListener('wheel', (event) => {
             event.preventDefault();
             const cameraDirection = new THREE.Vector3();
             camera.getWorldDirection(cameraDirection);
-            
-            const scrollSpeed = event.deltaY * 0.03; // Increased from 0.01 to 0.03 (3x faster scroll)
+            const scrollSpeed = event.deltaY * 0.03;
             camera.position.add(cameraDirection.multiplyScalar(-scrollSpeed));
         }, { passive: false });
 
-        // Keyboard and button controls for movement
+        // Keyboard controls
         const movement = {
             forward: false,
             backward: false,
             left: false,
             right: false,
-            speed: 1.5 // Increased from 0.5 to 1.5 (3x faster)
+            speed: 1.5
         };
 
-        // Keyboard controls
         document.addEventListener('keydown', (event) => {
             switch(event.key.toLowerCase()) {
                 case 'w':
@@ -567,21 +609,17 @@
             if (intersects.length > 0) {
                 const project = intersects[0].object.userData.project;
                 
-                // Update tooltip content
                 const logoUrl = project.logo ? (project.logo.startsWith('http') ? project.logo : 'Logos/' + project.logo) : 'https://via.placeholder.com/48';
                 document.getElementById('tooltipLogo').src = logoUrl;
                 document.getElementById('tooltipName').textContent = project.name;
                 
-                // Handle categories
                 const categories = Array.isArray(project.categories) ? project.categories : [project.category];
                 document.getElementById('tooltipCategories').innerHTML = categories.map(cat => 
                     `<span class="tooltip-tag">${cat}</span>`
                 ).join('');
                 
-                // Description
                 document.getElementById('tooltipDesc').textContent = project.description || 'No description available';
                 
-                // Links
                 const footerLinks = [];
                 if (project.website) {
                     footerLinks.push(`<span class="tooltip-link">🌐 Website</span>`);
@@ -591,7 +629,6 @@
                 }
                 document.getElementById('tooltipFooter').innerHTML = footerLinks.join('');
                 
-                // Position tooltip
                 tooltip.style.display = 'block';
                 const tooltipWidth = 350;
                 const tooltipHeight = tooltip.offsetHeight;
@@ -599,7 +636,6 @@
                 let left = event.clientX + 15;
                 let top = event.clientY + 15;
                 
-                // Keep tooltip on screen
                 if (left + tooltipWidth > window.innerWidth) {
                     left = event.clientX - tooltipWidth - 15;
                 }
@@ -634,13 +670,9 @@
             requestAnimationFrame(animate);
             time += 0.01;
             
-            // Rotate stars slowly
             stars.rotation.y += 0.0002;
-            
-            // Make stars follow camera for infinite effect
             stars.position.copy(camera.position);
             
-            // Handle movement
             const cameraDirection = new THREE.Vector3();
             camera.getWorldDirection(cameraDirection);
             
@@ -661,7 +693,6 @@
                 camera.position.add(right.multiplyScalar(movement.speed));
             }
             
-            // Update projects around camera when moving to new grid cell
             const currentGridX = Math.floor(camera.position.x / gridSpacing);
             const currentGridY = Math.floor(camera.position.y / gridSpacing);
             const currentGridZ = Math.floor(camera.position.z / gridSpacing);
@@ -673,19 +704,11 @@
                 lastCameraGridPos = { x: currentGridX, y: currentGridY, z: currentGridZ };
             }
             
-            // Remove automatic mouse tracking - full manual control only
-            
-            // Rotate logo spheres
             logoSpheres.forEach((sphere, index) => {
                 sphere.rotation.y += sphere.userData.rotationSpeed;
-                
-                // Make spheres float slightly
                 sphere.position.y = sphere.userData.originalPosition.y + Math.sin(time + index) * 2;
                 
-                // Calculate distance to camera
                 const distance = camera.position.distanceTo(sphere.position);
-                
-                // Scale spheres based on distance (closer = bigger)
                 const scale = Math.max(0.5, Math.min(2, 50 / distance));
                 sphere.scale.set(scale, scale, scale);
             });
