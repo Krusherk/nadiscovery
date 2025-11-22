@@ -259,6 +259,17 @@
             gap: 12px;
         }
 
+        .audio-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            font-weight: 600;
+            background: rgba(15, 15, 15, 0.95);
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
         .audio-btn {
             width: 50px;
             height: 50px;
@@ -285,17 +296,6 @@
             color: rgba(255, 255, 255, 0.4);
         }
 
-        .audio-label {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 13px;
-            font-weight: 500;
-            background: rgba(15, 15, 15, 0.9);
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            backdrop-filter: blur(10px);
-        }
-
         .search-results {
             position: fixed;
             top: 100px;
@@ -317,13 +317,14 @@
         <source src="sign-in-loop.mp3" type="audio/mpeg">
     </audio>
 
+    <canvas id="canvas3d"></canvas>
+
     <div class="audio-control">
+        <span class="audio-label" id="audioLabel">Turn on sound</span>
         <button class="audio-btn" id="audioBtn" title="Toggle Music">
             <span id="audioIcon">🔊</span>
         </button>
     </div>
-
-    <canvas id="canvas3d"></canvas>
     
     <div class="search-bar">
         <input type="text" class="search-input" id="searchInput" placeholder="Search projects in space...">
@@ -385,6 +386,7 @@
         const bgMusic = document.getElementById('bgMusic');
         const audioBtn = document.getElementById('audioBtn');
         const audioIcon = document.getElementById('audioIcon');
+        const audioLabel = document.getElementById('audioLabel');
         let isMuted = false;
 
         function tryAutoplay() {
@@ -409,7 +411,6 @@
         }
 
         function updateAudioIcon() {
-            const audioLabel = document.getElementById('audioLabel');
             if (isMuted || bgMusic.paused) {
                 audioIcon.textContent = '🔇';
                 audioBtn.classList.add('muted');
@@ -545,7 +546,6 @@
             const textureLoader = new THREE.TextureLoader();
             
             if (filteredProjects.length === 0) {
-                // Clear all spheres if no filtered projects
                 logoSpheres.forEach(sphere => {
                     scene.remove(sphere);
                     if (sphere.geometry) sphere.geometry.dispose();
@@ -576,7 +576,6 @@
                         
                         if (sphereCache.has(key)) continue;
                         
-                        // Use filtered projects in order, cycling through them
                         const project = filteredProjects[projectIndex % filteredProjects.length];
                         projectIndex++;
                         
@@ -618,7 +617,6 @@
                 }
             }
             
-            // Remove spheres that should no longer exist
             sphereCache.forEach((sphere, key) => {
                 if (!shouldExist.has(key)) {
                     scene.remove(sphere);
