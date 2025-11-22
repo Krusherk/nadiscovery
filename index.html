@@ -597,13 +597,26 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
-        /* Audio Control Button */
-        .audio-control {
-            position: fixed;
-            bottom: 32px;
-            left: 32px;
-            z-index: 2000;
-        }
+    .audio-control {
+    position: fixed;
+    bottom: 32px;
+    left: 32px;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.audio-label {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+    font-weight: 600;
+    background: rgba(15, 15, 15, 0.95);
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    backdrop-filter: blur(10px);
+}
 
         .audio-btn {
             width: 50px;
@@ -642,12 +655,13 @@
         <source src="sign-in-loop.mp3" type="audio/mpeg">
     </audio>
 
-    <!-- Audio Control Button -->
-    <div class="audio-control">
-        <button class="audio-btn" id="audioBtn" title="Toggle Music">
-            <span id="audioIcon">🔊</span>
-        </button>
-    </div>
+<!-- Audio Control Button -->
+<div class="audio-control">
+    <button class="audio-btn" id="audioBtn" title="Toggle Music">
+        <span id="audioIcon">🔊</span>
+    </button>
+    <span class="audio-label" id="audioLabel">Turn on sound</span>
+</div>
 
     <div class="grid-bg"></div>
     <div class="glow glow-1"></div>
@@ -811,16 +825,18 @@
             }
         }
 
-        function updateAudioIcon() {
-            if (isMuted || bgMusic.paused) {
-                audioIcon.textContent = '🔇';
-                audioBtn.classList.add('muted');
-            } else {
-                audioIcon.textContent = '🔊';
-                audioBtn.classList.remove('muted');
-            }
-        }
-
+    function updateAudioIcon() {
+    const audioLabel = document.getElementById('audioLabel');
+    if (isMuted || bgMusic.paused) {
+        audioIcon.textContent = '🔇';
+        audioBtn.classList.add('muted');
+        audioLabel.textContent = 'Turn on sound';
+    } else {
+        audioIcon.textContent = '🔊';
+        audioBtn.classList.remove('muted');
+        audioLabel.textContent = 'Turn off sound';
+    }
+}
         audioBtn.addEventListener('click', () => {
             isMuted = !isMuted;
             if (isMuted) {
