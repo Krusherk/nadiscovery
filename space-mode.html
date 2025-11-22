@@ -484,7 +484,18 @@
                 document.getElementById('searchResults').style.display = 'none';
             }
             
-            // Clear cache and recreate spheres
+            // Clear ALL existing spheres from scene
+            logoSpheres.forEach(sphere => {
+                scene.remove(sphere);
+                if (sphere.geometry) sphere.geometry.dispose();
+                if (sphere.material) {
+                    if (sphere.material.map) sphere.material.map.dispose();
+                    sphere.material.dispose();
+                }
+            });
+            logoSpheres = [];
+            
+            // Clear cache and force regeneration
             sphereCache.clear();
             lastCameraGridPos = { x: Infinity, y: Infinity, z: Infinity };
             updateProjectsAroundCamera();
