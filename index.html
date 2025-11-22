@@ -597,6 +597,39 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
+        /* Audio Control Button */
+        .audio-control {
+            position: fixed;
+            bottom: 32px;
+            left: 32px;
+            z-index: 2000;
+        }
+
+        .audio-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(15, 15, 15, 0.95);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #8b5cf6;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .audio-btn:hover {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: rgba(139, 92, 246, 0.5);
+            transform: scale(1.1);
+        }
+
+        .audio-btn.muted {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
         @media (max-width: 768px) {
             .grid { grid-template-columns: 1fr; }
             .modal-box { padding: 28px; }
@@ -604,6 +637,18 @@
     </style>
 </head>
 <body>
+    <!-- Background Audio -->
+    <audio id="bgMusic" loop>
+        <source src="sign-in-loop.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Audio Control Button -->
+    <div class="audio-control">
+        <button class="audio-btn" id="audioBtn" title="Toggle Music">
+            <span id="audioIcon">🔊</span>
+        </button>
+    </div>
+
     <div class="grid-bg"></div>
     <div class="glow glow-1"></div>
     <div class="glow glow-2"></div>
@@ -738,6 +783,55 @@
         let currentCat = 'all';
         let recommendedProjects = [];
         let logoSpheres = [];
+
+        // Audio Control
+        const bgMusic = document.getElementById('bgMusic');
+        const audioBtn = document.getElementById('audioBtn');
+        const audioIcon = document.getElementById('audioIcon');
+        let isMuted = false;
+
+        function tryAutoplay() {
+            bgMusic.volume = 0.5;
+            const playPromise = bgMusic.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    updateAudioIcon();
+                }).catch(() => {
+                    document.addEventListener('click', startMusicOnInteraction, { once: true });
+                    document.addEventListener('keydown', startMusicOnInteraction, { once: true });
+                });
+            }
+        }
+
+        function startMusicOnInteraction() {
+            if (bgMusic.paused && !isMuted) {
+                bgMusic.play();
+                updateAudioIcon();
+            }
+        }
+
+        function updateAudioIcon() {
+            if (isMuted || bgMusic.paused) {
+                audioIcon.textContent = '🔇';
+                audioBtn.classList.add('muted');
+            } else {
+                audioIcon.textContent = '🔊';
+                audioBtn.classList.remove('muted');
+            }
+        }
+
+        audioBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            if (isMuted) {
+                bgMusic.pause();
+            } else {
+                bgMusic.play();
+            }
+            updateAudioIcon();
+        });
+
+        tryAutoplay();
 
         // Modal
         window.openSubmitModal = () => document.getElementById('modal').classList.add('show');
